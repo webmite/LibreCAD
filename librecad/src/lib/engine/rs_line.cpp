@@ -2,7 +2,7 @@
 **
 ** This file is part of the LibreCAD project, a 2D CAD program
 **
-** Copyright (C) 2015 A. Stebich (librecad@mail.lordofbikes.de)
+** Copyright (C) 2015-2018 A. Stebich (librecad@mail.lordofbikes.de)
 ** Copyright (C) 2010 R. van Twisk (librecad@rvt.dds.nl)
 ** Copyright (C) 2001-2003 RibbonSoft. All rights reserved.
 **
@@ -112,37 +112,65 @@ RS_Vector RS_Line::getNearestEndpoint(const RS_Vector& coord,
 
 }
 
+/**
+ *  This is similar to getNearestPointOnEntity, but only returns the value of
+ *  the position of the projection.  The value may be negative, or greater than
+ *  the length of the line since there are no bounds checking.  The absolute
+ *  value of the return value represents a physical distance from the
+ *  startpoint.
+ *
+ *  @param coord The point which will be projected onto the line.
+ */
+double RS_Line::getProjectionValueAlongLine(const RS_Vector& coord) const
+{
+    RS_Vector direction {data.endpoint - data.startpoint};
+    RS_Vector vpc {coord - data.startpoint};
+    double direction_magnitude {direction.magnitude()};
+    double v = 0.0;
 
+    if(direction_magnitude > RS_TOLERANCE2) {
+        //find projection on line
+        v = RS_Vector::dotP(vpc, direction) / direction_magnitude;
+    }
+
+    return v;
+}
 
 RS_Vector RS_Line::getNearestPointOnEntity(const RS_Vector& coord,
-                                           bool onEntity, double* dist, RS_Entity** entity)const {
-
-	if (entity) {
+                                           bool onEntity,
+                                           double* dist,
+                                           RS_Entity** entity) const
+{
+    if (entity) {
         *entity = const_cast<RS_Line*>(this);
     }
-    RS_Vector direction = data.endpoint-data.startpoint;
-    RS_Vector vpc=coord-data.startpoint;
-    double a=direction.squared();
+
+    RS_Vector direction {data.endpoint - data.startpoint};
+    RS_Vector vpc {coord - data.startpoint};
+    double a {direction.squared()};
+
     if( a < RS_TOLERANCE2) {
         //line too short
-        vpc=getMiddlePoint();
-    }else{
+        vpc = getMiddlePoint();
+    }
+    else {
         //find projection on line
-        const double t=RS_Vector::dotP(vpc,direction)/a;
-        if( !isConstruction() && onEntity &&
-                ( t<=-RS_TOLERANCE || t>=1.+RS_TOLERANCE )
-                ){
-            //                !( vpc.x>= minV.x && vpc.x <= maxV.x && vpc.y>= minV.y && vpc.y<=maxV.y) ) {
+        const double t {RS_Vector::dotP( vpc, direction) / a};
+        if( !isConstruction()
+            && onEntity
+            && ( t <= -RS_TOLERANCE
+                 || t >= 1. + RS_TOLERANCE ) ) {
             //projection point not within range, find the nearest endpoint
-            //            std::cout<<"not within window, returning endpoints\n";
-            return getNearestEndpoint(coord,dist);
+            return getNearestEndpoint( coord, dist);
         }
-        vpc = data.startpoint + direction*t;
+
+        vpc = data.startpoint + direction * t;
     }
 
-	if (dist) {
-        *dist = vpc.distanceTo(coord);
+    if (dist) {
+        *dist = vpc.distanceTo( coord);
     }
+
     return vpc;
 }
 
@@ -575,7 +603,9 @@ void RS_Line::draw(RS_Painter* painter, RS_GraphicView* view, double& patternOff
 
     if ((endPoints[0] - getStartpoint()).squared() >
             (endPoints[1] - getStartpoint()).squared() )
+    {
         std::swap(endPoints[0],endPoints[1]);
+    }
 
 	RS_Vector pStart{view->toGui(endPoints.at(0))};
 	RS_Vector pEnd{view->toGui(endPoints.at(1))};
@@ -586,7 +616,7 @@ void RS_Line::draw(RS_Painter* painter, RS_GraphicView* view, double& patternOff
         //extend line on a construction layer to fill the whole view
 		RS_VectorSolutions vpIts;
 		for(auto p: ec) {
-			auto const sol=RS_Information::getIntersection(this, p, false);
+            auto const sol=RS_Information::getIntersection(this, p, true);
 			for (auto const& vp: sol) {
 				if (vpIts.getClosestDistance(vp) <= RS_TOLERANCE * 10.)
 					continue;

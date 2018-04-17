@@ -2,6 +2,8 @@
 **
 ** This file is part of the LibreCAD project, a 2D CAD program
 **
+** Copyright (C) 2018 A. Stebich (librecad@mail.lordofbikes.de)
+** Copyright (C) 2018 Simon Wells <simonrwells@gmail.com>
 ** Copyright (C) 2015-2016 ravas (github.com/r-a-v-a-s)
 ** Copyright (C) 2010 R. van Twisk (librecad@rvt.dds.nl)
 ** Copyright (C) 2001-2003 RibbonSoft. All rights reserved.
@@ -31,14 +33,15 @@
 #include <QSplashScreen>
 #include <QSettings>
 #include <QMessageBox>
+#include <QFileInfo>
 
 #include "rs_fontlist.h"
 #include "rs_patternlist.h"
 #include "rs_settings.h"
 #include "rs_system.h"
-#include "rs_fileio.h"
 #include "qg_dlginitial.h"
 
+#include "lc_application.h"
 #include "qc_applicationwindow.h"
 #include "rs_debug.h"
 
@@ -51,7 +54,7 @@ int main(int argc, char** argv)
 
     RS_DEBUG->setLevel(RS_Debug::D_WARNING);
 
-    QApplication app(argc, argv);
+    LC_Application app(argc, argv);
     QCoreApplication::setOrganizationName("LibreCAD");
     QCoreApplication::setApplicationName("LibreCAD");
     QCoreApplication::setApplicationVersion(XSTR(LC_VERSION));
@@ -239,6 +242,9 @@ int main(int argc, char** argv)
 
     RS_DEBUG->print("main: creating main window..");
     QC_ApplicationWindow appWin;
+#ifdef Q_OS_MAC
+    app.installEventFilter(&appWin);
+#endif
     RS_DEBUG->print("main: setting caption");
     appWin.setWindowTitle(app.applicationName());
 
@@ -294,6 +300,10 @@ int main(int argc, char** argv)
     setlocale(LC_NUMERIC, "C");
 
     RS_DEBUG->print("main: loading files..");
+#ifdef Q_OS_MAC
+    // get the file list from LC_Application
+    fileList << app.fileList();
+#endif
     bool files_loaded = false;
     for (QStringList::Iterator it = fileList.begin(); it != fileList.end(); ++it )
     {
@@ -304,7 +314,7 @@ int main(int argc, char** argv)
             Qt::AlignRight|Qt::AlignBottom, Qt::black);
             qApp->processEvents();
         }
-        appWin.slotFileOpen(*it, RS2::FormatUnknown);
+        appWin.slotFileOpen(*it);
         files_loaded = true;
     }
     RS_DEBUG->print("main: loading files: OK");
